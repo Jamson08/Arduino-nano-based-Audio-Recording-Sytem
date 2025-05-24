@@ -1,0 +1,50 @@
+#include <SD.h>
+#include <TMRpcm.h>
+#include <SPI.h>
+
+#define SD_ChipSelectPin 10  // Chip select pin for SD card
+#define REC_BUTTON 2         // Pin for tactile switch
+#define LED_PIN 13           // On-board LED indicator
+#define AUDIO_INPUT A0       // MAX9814 connected here
+
+TMRpcm audio;
+
+bool isRecording = false;
+
+void setup() {
+  pinMode(REC_BUTTON, INPUT_PULLUP); // Button input with internal pull-up
+  pinMode(LED_PIN, OUTPUT);          // LED output
+  digitalWrite(LED_PIN, LOW);
+
+  Serial.begin(9600);
+  if (!SD.begin(SD_ChipSelectPin)) {
+    Serial.println("SD card failed to initialize.");
+    while (1);
+  }
+  Serial.println("SD card initialized.");
+
+  audio.speakerPin = 9; // Required by TMRpcm, even if not used for output
+  audio.setVolume(6);   // Volume range: 0 (loudest) to 7 (quietest)
+}
+
+void loop() {
+  if (digitalRead(REC_BUTTON) == LOW) {
+    delay(200);  // debounce
+
+    if (!isRecording) {
+      Serial.println("Recording started...");
+      digitalWrite(LED_PIN, HIGH);
+      audio.startRecording("audio.wav", 16000, AUDIO_INPUT); // 16kHz sample rate
+      isRecording = true;
+    } else {
+      Serial.println("Recording stopped.");
+      digitalWrite(LED_PIN, LOW);
+      audio.stopRecording("audio.wav");
+      isRecording = false;
+    }
+
+    // Wait until button is released
+    while (digitalRead(REC_BUTTON) == LOW);
+    delay(200);  // debounce
+  }
+}
